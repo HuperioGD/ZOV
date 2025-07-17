@@ -1,1 +1,140 @@
+import pygame
+import sys
+import random
 
+# Инициализация Pygame
+pygame.init()
+
+# Настройки экрана
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Кубик и Шипы")
+
+# Цвета
+BLUE = (100, 149, 237)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+BLACK = (0, 0, 0)
+
+# Игрок (кубик)
+player_size = 40
+player_x = 100
+player_y = HEIGHT - player_size - 50
+player_vel_y = 0
+gravity = 1
+jump_strength = -18
+is_jumping = False
+
+# Шипы
+spikes = []
+spike_width = 30
+spike_height = 50
+spike_speed = 5
+spawn_timer = 0
+
+# Игровые переменные
+score = 0
+game_over = False
+clock = pygame.time.Clock()
+font = pygame.font.SysFont(None, 36)
+
+# Основной игровой цикл
+running = True
+while running:
+    # Обработка событий
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE and not is_jumping and not game_over:
+                player_vel_y = jump_strength
+                is_jumping = True
+            if event.key == pygame.K_r and game_over:
+                # Перезапуск игры
+                game_over = False
+                player_y = HEIGHT - player_size - 50
+                player_vel_y = 0
+                spikes = []
+                score = 0
+    
+    if not game_over:
+        # Физика игрока
+        player_vel_y += gravity
+        player_y += player_vel_y
+        
+        # Проверка земли
+        if player_y >= HEIGHT - player_size - 50:
+            player_y = HEIGHT - player_size - 50
+            player_vel_y = 0
+            is_jumping = False
+        
+        # Генерация шипов
+        spawn_timer += 1
+        if spawn_timer >= 60:
+            spikes.append([WIDTH, HEIGHT - spike_height - 50])
+            spawn_timer = 0
+        
+        # Движение шипов
+        for spike in spikes[:]:
+            spike[0] -= spike_speed
+            if spike[0] < -spike_width:
+                spikes.remove(spike)
+                score += 1
+        
+        # Проверка столкновений
+        for spike in spikes:
+            # Проверка попадания в треугольник шипа
+            spike_top = spike[1]
+            spike_bottom = spike[1] + spike_height
+            spike_left = spike[0]
+            spike_right = spike[0] + spike_width
+            
+            player_bottom = player_y + player_size
+            player_top = player_y
+            player_left = player_x
+            player_right = player_x + player_size
+            
+            # Простая проверка прямоугольников
+            if (player_right > spike_left and player_left < spike_right and
+                player_bottom > spike_top and player_top < spike_bottom):
+                # Более точная проверка для треугольного шипа
+                spike_center_x = spike_left + spike_width // 2
+                relative_x = player_x - spike_left
+                
+                # Если игрок над центральной точкой шипа
+                if player_bottom > spike_top and player_right > spike_left and player_left < spike_right:
+                    game_over = True
+    
+    # Отрисовка
+    screen.fill(BLUE)  # Синий фон
+    
+    # Отрисовка земли
+    pygame.draw.rect(screen, WHITE, (0, HEIGHT - 50, WIDTH, 50))
+    
+    # Отрисовка игрока (кубик)
+    pygame.draw.rect(screen, WHITE, (player_x, player_y, player_size, player_size))
+    # Глаза кубика
+    pygame.draw.rect(screen, BLACK, (player_x + 10, player_y + 10, 8, 8))
+    pygame.draw.rect(screen, BLACK, (player_x + 25, player_y + 10, 8, 8))
+    
+    # Отрисовка шипов
+    for spike in spikes:
+        points = [(spike[0], spike[1] + spike_height), 
+                 (spike[0] + spike_width // 2, spike[1]), 
+                 (spike[0] + spike_width, spike[1] + spike_height)]
+        pygame.draw.polygon(screen, RED, points)
+    
+    # Отрисовка счета
+    score_text = font.render(f"Счет: {score}", True, WHITE)
+    screen.blit(score_text, (10, 10))
+    
+    if game_over:
+        game_over_text = font.render("Игра окончена! Нажмите R для рестарта", True, WHITE)
+        screen.blit(game_over_text, (WIDTH // 2 - 200, HEIGHT // 2 - 18))
+    
+    pygame.display.update()
+    clock.tick(60)
+
+pygame.quit()
+sys.exit()
